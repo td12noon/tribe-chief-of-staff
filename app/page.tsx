@@ -31,6 +31,7 @@ export default function MeetingDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateLoading, setDateLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // Helper function to check if a date is today
@@ -70,9 +71,14 @@ export default function MeetingDashboard() {
   };
 
   // Function to fetch meetings for a specific date
-  const fetchMeetingsForDate = async (date: Date, authenticated: boolean) => {
+  const fetchMeetingsForDate = async (date: Date, authenticated: boolean, showDateLoading = false) => {
+    if (showDateLoading) {
+      setDateLoading(true);
+    }
+
     if (!authenticated) {
       setMeetings(mockMeetings);
+      setDateLoading(false);
       return;
     }
 
@@ -96,6 +102,8 @@ export default function MeetingDashboard() {
     } catch (error) {
       console.error('Error fetching meetings:', error);
       setMeetings([]);
+    } finally {
+      setDateLoading(false);
     }
   };
 
@@ -135,7 +143,7 @@ export default function MeetingDashboard() {
   // Fetch meetings when date changes (only if authenticated)
   useEffect(() => {
     if (isAuthenticated) {
-      fetchMeetingsForDate(currentDate, true);
+      fetchMeetingsForDate(currentDate, true, true);
     }
   }, [currentDate, isAuthenticated]);
 
@@ -311,115 +319,145 @@ export default function MeetingDashboard() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {meetings.map((meeting) => (
-                <div key={meeting.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  {/* Meeting Header */}
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {meeting.title}
-                      </h3>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        <div className="flex items-center space-x-1">
+            {/* Loading State for Date Navigation */}
+            {dateLoading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-3 text-sm text-gray-600">Loading meetings...</p>
+              </div>
+            )}
+
+            {/* Meetings List */}
+            {!dateLoading && (
+              <div className="space-y-4">
+                {meetings.map((meeting) => {
+                  const isSoloMeeting = meeting.attendees.length === 0;
+
+                  return isSoloMeeting ? (
+                    // Condensed view for solo meetings
+                    <div key={meeting.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-medium text-gray-900 flex-1">
+                          {meeting.title}
+                        </h3>
+                        <div className="flex items-center space-x-1 text-sm text-gray-500 ml-4">
                           <Clock className="h-4 w-4" />
                           <span>{meeting.time}</span>
                         </div>
-                        {meeting.attendees.length > 0 && (
-                          <div className="flex items-center space-x-1">
-                            <Users className="h-4 w-4" />
-                            <span>{meeting.attendees.join(", ")}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Attendees */}
-                  {meeting.attendees.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Meeting with</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {meeting.attendees.map((attendee, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium"
-                          >
-                            <Users className="h-3 w-3 mr-1" />
-                            {attendee}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* One-liner */}
-                  <div className="mb-4">
-                    <h4 className="font-medium text-gray-900 mb-1">Who & What</h4>
-                    <p className="text-gray-700">{meeting.oneLiner}</p>
-                  </div>
-
-                  {/* Context Grid */}
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Why Now</h4>
-                      <p className="text-sm text-gray-600">{meeting.whyNow}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Stakes</h4>
-                      <p className="text-sm text-gray-600">{meeting.stakes}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Likely Goal</h4>
-                      <p className="text-sm text-gray-600">{meeting.likelyGoal}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Tone</h4>
-                      <p className="text-sm text-gray-600">{meeting.toneRecommendation}</p>
-                    </div>
-                  </div>
-
-                  {/* Provenance Links */}
-                  {meeting.provenanceLinks.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Source Material</h4>
-                      <div className="space-y-2">
-                        {meeting.provenanceLinks.map((link, index) => (
-                          <div key={index} className="flex items-start space-x-2 p-2 bg-gray-50 rounded">
-                            <div className="flex-shrink-0 mt-0.5">
-                              {link.type === 'email' && <FileText className="h-4 w-4 text-blue-500" />}
-                              {link.type === 'slack' && <Link2 className="h-4 w-4 text-green-500" />}
-                              {link.type === 'call' && <Clock className="h-4 w-4 text-purple-500" />}
+                  ) : (
+                    // Full view for meetings with other attendees
+                    <div key={meeting.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      {/* Meeting Header */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                            {meeting.title}
+                          </h3>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-4 w-4" />
+                              <span>{meeting.time}</span>
                             </div>
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-600 italic">&quot;{link.snippet}&quot;</p>
-                              <a href={link.url} className="text-xs text-blue-600 hover:underline capitalize">
-                                View {link.type} →
-                              </a>
-                            </div>
+                            {meeting.attendees.length > 0 && (
+                              <div className="flex items-center space-x-1">
+                                <Users className="h-4 w-4" />
+                                <span>{meeting.attendees.join(", ")}</span>
+                              </div>
+                            )}
                           </div>
-                        ))}
+                        </div>
                       </div>
+
+                      {/* Attendees */}
+                      {meeting.attendees.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="font-medium text-gray-900 mb-2">Meeting with</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {meeting.attendees.map((attendee, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium"
+                              >
+                                <Users className="h-3 w-3 mr-1" />
+                                {attendee}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* One-liner */}
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-1">Who & What</h4>
+                        <p className="text-gray-700">{meeting.oneLiner}</p>
+                      </div>
+
+                      {/* Context Grid */}
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-1">Why Now</h4>
+                          <p className="text-sm text-gray-600">{meeting.whyNow}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-1">Stakes</h4>
+                          <p className="text-sm text-gray-600">{meeting.stakes}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-1">Likely Goal</h4>
+                          <p className="text-sm text-gray-600">{meeting.likelyGoal}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-1">Tone</h4>
+                          <p className="text-sm text-gray-600">{meeting.toneRecommendation}</p>
+                        </div>
+                      </div>
+
+                      {/* Provenance Links */}
+                      {meeting.provenanceLinks.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-2">Source Material</h4>
+                          <div className="space-y-2">
+                            {meeting.provenanceLinks.map((link, index) => (
+                              <div key={index} className="flex items-start space-x-2 p-2 bg-gray-50 rounded">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  {link.type === 'email' && <FileText className="h-4 w-4 text-blue-500" />}
+                                  {link.type === 'slack' && <Link2 className="h-4 w-4 text-green-500" />}
+                                  {link.type === 'call' && <Clock className="h-4 w-4 text-purple-500" />}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm text-gray-600 italic">&quot;{link.snippet}&quot;</p>
+                                  <a href={link.url} className="text-xs text-blue-600 hover:underline capitalize">
+                                    View {link.type} →
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+
+                {/* Empty State (when no meetings and not loading) */}
+                {meetings.length === 0 && (
+                  <div className="text-center py-12">
+                    <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No meetings today</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {isAuthenticated
+                        ? "Enjoy your meeting-free day! Your calendar is connected and we're monitoring for new events."
+                        : "Connect your calendar to see upcoming meetings and get smart pre-briefs."
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Empty State (when no meetings) */}
-          {meetings.length === 0 && (
-            <div className="text-center py-12">
-              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No meetings today</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {isAuthenticated
-                  ? "Enjoy your meeting-free day! Your calendar is connected and we're monitoring for new events."
-                  : "Connect your calendar to see upcoming meetings and get smart pre-briefs."
-                }
-              </p>
-            </div>
-          )}
         </div>
       </main>
     </div>
