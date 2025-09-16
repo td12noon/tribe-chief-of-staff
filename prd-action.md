@@ -45,45 +45,51 @@
 - [x] **BONUS**: Timezone-aware date handling for accurate calendar data
 - [x] **BONUS**: Clickable calendar icon to return to today
 
-## Phase 2: Core Data Sources (Weeks 4-6)
+## Phase 2: AI Intelligence & LinkedIn (Weeks 4-6)
 
-### Week 4: Gmail Integration
-- [ ] Gmail API setup with proper scopes
-- [ ] Email thread parsing for introductions
-- [ ] Extract intro context and participants
-- [ ] Link emails to calendar attendees
+### Week 4: AI Brief Generation & LLM Integration
+- [ ] LLM integration (Anthropic Claude recommended)
+- [ ] Prompt engineering for intelligent brief generation
+- [ ] Generate contextual stakes, goals, and tone recommendations
+- [ ] Extract "non-obvious facts" from attendee data
+- [ ] Smart meeting categorization and insights
 
-### Week 5: Slack Integration
-- [ ] Slack API integration
-- [ ] Monitor #intros, #sales, #partners channels
-- [ ] Parse introduction messages
-- [ ] Entity matching with Slack handles
+### Week 5: LinkedIn Integration & Profile Enrichment
+- [ ] LinkedIn API integration for profile data
+- [ ] Company and person profile enrichment
+- [ ] Professional background and experience extraction
+- [ ] Recent activity and post analysis
+- [ ] Connection mapping and mutual contacts
 
-### Week 6: Sybil Integration
-- [ ] Sybil API integration
-- [ ] Pull call transcripts and metadata
-- [ ] Generate clips/timestamps for relevant segments
-- [ ] Link call participants to meeting attendees
-
-## Phase 3: Intelligence Layer (Weeks 7-9)
-
-### Week 7: Enhanced Entity Resolution
+### Week 6: Enhanced Entity Resolution & Provenance
 - [ ] Fuzzy matching algorithm for names/emails
 - [ ] Alias detection and management
 - [ ] Manual override system (pin/unpin matches)
 - [ ] Entity confidence scoring
+- [ ] Source lineage tracking and confidence indicators
 
-### Week 8: AI Brief Generation
-- [ ] LLM integration (OpenAI/Anthropic)
-- [ ] Prompt engineering for brief generation
-- [ ] Extract "non-obvious facts" from context
-- [ ] Generate stakes, goals, and tone recommendations
+## Phase 3: Communication Data Sources (Weeks 7-9)
 
-### Week 9: Provenance System
-- [ ] Track source lineage for all information
-- [ ] One-click access to original threads/calls
-- [ ] Confidence indicators for each fact
-- [ ] Source prioritization logic
+### Week 7: Gmail Integration
+- [ ] Gmail API setup with proper scopes
+- [ ] Email thread parsing for introductions
+- [ ] Extract intro context and participants
+- [ ] Link emails to calendar attendees
+- [ ] Integration with AI brief generation
+
+### Week 8: Slack Integration
+- [ ] Slack API integration
+- [ ] Monitor #intros, #sales, #partners channels
+- [ ] Parse introduction messages
+- [ ] Entity matching with Slack handles
+- [ ] Feed context into AI brief system
+
+### Week 9: Sybil Integration
+- [ ] Sybil API integration
+- [ ] Pull call transcripts and metadata
+- [ ] Generate clips/timestamps for relevant segments
+- [ ] Link call participants to meeting attendees
+- [ ] Enhanced AI briefs with call context
 
 ## Phase 4: User Experience (Weeks 10-11)
 
@@ -148,6 +154,12 @@ interface ProvenanceLink {
 - **Scopes**: `calendar.readonly`
 - **Data**: Event metadata, attendees, time, location
 - **Frequency**: Real-time webhooks + daily sync
+
+### LinkedIn API
+- **Scopes**: `r_liteprofile`, `r_organization_social`, `r_basicprofile`
+- **Data**: Professional profiles, company pages, recent posts, connections
+- **Processing**: Extract background, experience, company info, recent activity
+- **Enrichment**: Enhance person/company entities with professional context
 
 ### Gmail API
 - **Scopes**: `gmail.readonly`
@@ -256,9 +268,9 @@ interface ProvenanceLink {
 
 | Phase | Duration | Key Deliverable |
 |-------|----------|-----------------|
-| Phase 1 | 3 weeks | Basic calendar + simple briefs |
-| Phase 2 | 3 weeks | All data source integrations |
-| Phase 3 | 3 weeks | AI-powered brief generation |
+| Phase 1 | 3 weeks | Foundation + advanced calendar navigation ✅ |
+| Phase 2 | 3 weeks | AI briefs + LinkedIn profile enrichment |
+| Phase 3 | 3 weeks | Email/Slack/Sybil data source integrations |
 | Phase 4 | 2 weeks | Production-ready UI/UX |
 | **Total** | **11 weeks** | **Full V1 Launch** |
 
@@ -286,11 +298,12 @@ We've successfully completed the entire Phase 1 foundation ahead of schedule! Th
 - Timezone-aware date synchronization
 - Real-time calendar data fetching for any date
 
-### 🎯 **CURRENT PRIORITY: Phase 2 - Week 4 Gmail Integration**
-Ready to begin core data source integrations with the foundation solidly in place!
+### 🎯 **CURRENT PRIORITY: Phase 2 - Week 4 AI Brief Generation**
+Ready to add intelligent AI-powered meeting briefs with LinkedIn profile enrichment!
 
 ### 📋 **Immediate Next Steps**
-1. **Week 4 Priority**: Gmail API integration for introduction email parsing
-2. **Key Achievement**: Phase 1 complete - solid foundation for rapid Phase 2 development
-3. **User Testing**: Get CEO feedback on current full-featured calendar system
-4. **Technical Debt**: Minimal - clean, well-structured codebase ready for scaling
+1. **Week 4 Priority**: LLM integration (Anthropic Claude) for smart brief generation
+2. **Strategic Focus**: Get AI insights flowing immediately with existing calendar data
+3. **Week 5 Target**: LinkedIn API integration for rich attendee profiles
+4. **User Impact**: CEO gets intelligent meeting insights without waiting for email/slack parsing
+5. **Technical Advantage**: Clean entity foundation ready for LinkedIn profile enrichment

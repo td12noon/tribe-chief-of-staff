@@ -1,5 +1,6 @@
 import { db } from '../config/database';
 import { entityService } from './entityService';
+import { aiService } from './aiService';
 import {
   MeetingBrief,
   MeetingAttendee,
@@ -8,16 +9,16 @@ import {
 } from '../types/entities';
 
 interface CalendarEvent {
-  id: string;
-  summary?: string;
-  description?: string;
-  location?: string;
-  start?: { dateTime?: string; date?: string };
-  end?: { dateTime?: string; date?: string };
+  id?: string | null;
+  summary?: string | null;
+  description?: string | null;
+  location?: string | null;
+  start?: { dateTime?: string | null; date?: string | null };
+  end?: { dateTime?: string | null; date?: string | null };
   attendees?: Array<{
-    email?: string;
-    displayName?: string;
-    responseStatus?: string;
+    email?: string | null;
+    displayName?: string | null;
+    responseStatus?: string | null;
   }>;
 }
 
@@ -59,7 +60,13 @@ class BriefService {
 
   // Resolve calendar event attendees to known people
   private async resolveEventAttendees(event: CalendarEvent, userEmail: string) {
-    const resolvedAttendees = [];
+    const resolvedAttendees: Array<{
+      email: string;
+      displayName?: string;
+      person?: Person;
+      confidence: number;
+      responseStatus?: string;
+    }> = [];
 
     if (!event.attendees) return resolvedAttendees;
 
@@ -70,24 +77,24 @@ class BriefService {
 
       try {
         const resolution = await entityService.resolveAttendee(
-          attendee.email,
-          attendee.displayName
+          attendee.email || '',
+          attendee.displayName || undefined
         );
 
         resolvedAttendees.push({
-          email: attendee.email,
-          displayName: attendee.displayName,
+          email: attendee.email || '',
+          displayName: attendee.displayName || undefined,
           person: resolution.person,
           confidence: resolution.confidence,
-          responseStatus: attendee.responseStatus
+          responseStatus: attendee.responseStatus || undefined
         });
 
         console.log(`👤 Resolved ${attendee.email} -> ${resolution.person?.name || 'Unknown'} (${resolution.confidence})`);
       } catch (error) {
         console.warn('Failed to resolve attendee:', attendee.email, error);
         resolvedAttendees.push({
-          email: attendee.email,
-          displayName: attendee.displayName,
+          email: attendee.email || '',
+          displayName: attendee.displayName || undefined,
           confidence: 0.0
         });
       }
@@ -98,42 +105,70 @@ class BriefService {
 
   // Generate AI-powered brief content using Anthropic Claude
   private async generateAIBrief(context: BriefGenerationContext) {
-    const { event, resolvedAttendees } = context;
+    const { event, resolvedAttendees, userEmail } = context;
 
-    // For now, generate a simple brief based on available data
-    // TODO: Integrate with Anthropic Claude API when API key is available
-    const knownAttendees = resolvedAttendees.filter(a => a.person);
-    const unknownAttendees = resolvedAttendees.filter(a => !a.person);
+    console.log('🤖 Generating AI brief for:', event.summary);
 
-    // Build context string
-    let attendeeContext = '';
-    if (knownAttendees.length > 0) {
-      attendeeContext = knownAttendees.map(a => {
-        const person = a.person!;
-        const company = person.company ? ` from ${person.company.name}` : '';
-        const title = person.title ? ` (${person.title})` : '';
-        const facts = person.notable_facts.length > 0 ? `. Notable: ${person.notable_facts.join(', ')}` : '';
-        return `${person.name}${company}${title}${facts}`;
-      }).join('; ');
+    try {
+      // Prepare attendee profiles for AI analysis
+      const attendeeProfiles = resolvedAttendees
+        .filter(a => a.person)
+        .map(a => ({
+          email: a.email,
+          displayName: a.displayName || a.person!.name,
+          company: a.person!.company?.name,
+          title: a.person!.title,
+          industry: a.person!.company?.industry,
+          confidence: a.confidence
+        }));
+
+      // Get user context (simplified for now)
+      const userContext = {
+        name: userEmail.split('@')[0], // Extract name from email for now
+        email: userEmail,
+        company: 'Tribe' // Default company - could be enhanced later
+      };
+
+      // Generate AI brief using the AI service
+      const aiBrief = await aiService.generateMeetingBrief(event, attendeeProfiles, userContext);
+
+      console.log('✅ AI brief generated:', {
+        category: aiBrief.meetingCategory,
+        confidence: aiBrief.confidenceScore,
+        aiEnabled: aiService.isAIEnabled()
+      });
+
+      return {
+        one_liner: aiBrief.oneLiner,
+        why_now: aiBrief.whyNow,
+        stakes: aiBrief.stakes,
+        likely_goal: aiBrief.likelyGoal,
+        tone_recommendation: aiBrief.toneRecommendation,
+        confidence_score: aiBrief.confidenceScore,
+        model_version: aiService.isAIEnabled() ? 'claude-3-haiku' : 'fallback-logic',
+        meeting_category: aiBrief.meetingCategory,
+        key_insights: aiBrief.keyInsights
+      };
+
+    } catch (error) {
+      console.error('AI brief generation failed, using fallback:', error);
+
+      // Fallback to original logic-based generation
+      const knownAttendees = resolvedAttendees.filter(a => a.person);
+      const unknownAttendees = resolvedAttendees.filter(a => !a.person);
+
+      return {
+        one_liner: this.generateOneLiner(event, knownAttendees, unknownAttendees),
+        why_now: this.generateWhyNow(event, knownAttendees),
+        stakes: this.generateStakes(event, knownAttendees),
+        likely_goal: this.generateLikelyGoal(event, knownAttendees),
+        tone_recommendation: this.generateToneRecommendation(knownAttendees),
+        confidence_score: this.calculateOverallConfidence(resolvedAttendees),
+        model_version: 'fallback-v1',
+        meeting_category: 'Business Meeting',
+        key_insights: ['Fallback analysis - AI service unavailable']
+      };
     }
-
-    // Generate basic brief content
-    const brief = {
-      one_liner: this.generateOneLiner(event, knownAttendees, unknownAttendees),
-      why_now: this.generateWhyNow(event, knownAttendees),
-      stakes: this.generateStakes(event, knownAttendees),
-      likely_goal: this.generateLikelyGoal(event, knownAttendees),
-      tone_recommendation: this.generateToneRecommendation(knownAttendees),
-      confidence_score: this.calculateOverallConfidence(resolvedAttendees),
-      model_version: 'basic-v1' // Will be updated to claude-3-sonnet when API is integrated
-    };
-
-    console.log('📝 Generated brief content:', {
-      oneLiner: brief.one_liner,
-      confidence: brief.confidence_score
-    });
-
-    return brief;
   }
 
   // Generate one-liner description
@@ -269,12 +304,13 @@ class BriefService {
     briefContent: any,
     resolvedAttendees: any[]
   ): Promise<MeetingBrief> {
-    const briefId = `brief_${event.id}`;
+    const eventId = event.id || `generated_${Date.now()}_${Math.random()}`;
+    const briefId = `brief_${eventId}`;
     const now = new Date();
 
     const brief: MeetingBrief = {
       id: briefId,
-      calendar_event_id: event.id!,
+      calendar_event_id: eventId,
       user_id: userId,
       one_liner: briefContent.one_liner,
       why_now: briefContent.why_now,
@@ -327,7 +363,7 @@ class BriefService {
         `;
 
         const briefResult = await db.query(briefQuery, [
-          event.id,
+          eventId,
           userId,
           briefContent.one_liner,
           briefContent.why_now,
@@ -355,7 +391,7 @@ class BriefService {
     }
 
     // Fallback to memory store
-    this.briefMemoryStore.set(event.id!, brief);
+    this.briefMemoryStore.set(eventId, brief);
     console.log('⚠️  Brief saved to memory store');
     return brief;
   }
