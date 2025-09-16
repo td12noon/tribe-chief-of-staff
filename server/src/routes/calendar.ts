@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
+import { briefService } from '../services/briefService';
 
 const router = Router();
 
@@ -64,48 +65,107 @@ router.get('/today', requireAuth, async (req: any, res) => {
     const events = response.data.items || [];
     console.log(`📋 Found ${events.length} events for today`);
 
-    // Transform events to our format
-    const transformedEvents = events.map(event => {
-      const startTime = event.start?.dateTime || event.start?.date;
-      const endTime = event.end?.dateTime || event.end?.date;
-
-      // Format time for display
-      const formatTime = (timeStr: string) => {
-        try {
-          const date = new Date(timeStr);
-          return date.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
-        } catch (e) {
-          return timeStr;
+    // Generate briefs for each event
+    const transformedEvents = [];
+    for (const event of events) {
+      try {
+        // Generate or retrieve brief for this event
+        let brief = await briefService.getBriefByEventId(event.id!);
+        if (!brief) {
+          console.log(`🤖 Generating new brief for: ${event.summary}`);
+          brief = await briefService.generateBrief(event, user.id, user.email);
+        } else {
+          console.log(`📖 Using existing brief for: ${event.summary}`);
         }
-      };
 
-      const timeRange = startTime && endTime ?
-        `${formatTime(startTime)} - ${formatTime(endTime)}` :
-        'All day';
+        // Format time for display
+        const startTime = event.start?.dateTime || event.start?.date;
+        const endTime = event.end?.dateTime || event.end?.date;
 
-      return {
-        id: event.id,
-        title: event.summary || 'Untitled Meeting',
-        time: timeRange,
-        attendees: (event.attendees || [])
-          .filter(attendee => attendee.email !== user.email) // Exclude the user
+        const formatTime = (timeStr: string) => {
+          try {
+            const date = new Date(timeStr);
+            return date.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+          } catch (e) {
+            return timeStr;
+          }
+        };
+
+        const timeRange = startTime && endTime ?
+          `${formatTime(startTime)} - ${formatTime(endTime)}` :
+          'All day';
+
+        // Get attendee display names (excluding the user)
+        const attendeeNames = (event.attendees || [])
+          .filter(attendee => attendee.email !== user.email)
           .map(attendee => attendee.displayName || attendee.email?.split('@')[0] || 'Unknown')
-          .slice(0, 3), // Limit to first 3 attendees
-        location: event.location,
-        description: event.description,
-        // Placeholder brief data - will be enhanced with AI later
-        oneLiner: `Meeting with ${(event.attendees || []).length} attendees`,
-        whyNow: 'Calendar event - context to be generated',
-        stakes: 'To be determined based on meeting context',
-        likelyGoal: 'Meeting objective to be analyzed',
-        toneRecommendation: 'Professional',
-        provenanceLinks: []
-      };
-    });
+          .slice(0, 3);
+
+        transformedEvents.push({
+          id: event.id,
+          title: event.summary || 'Untitled Meeting',
+          time: timeRange,
+          attendees: attendeeNames,
+          location: event.location,
+          description: event.description,
+          // AI-generated brief content
+          oneLiner: brief.one_liner || `Meeting with ${attendeeNames.length} attendees`,
+          whyNow: brief.why_now || 'Calendar event - context to be generated',
+          stakes: brief.stakes || 'To be determined based on meeting context',
+          likelyGoal: brief.likely_goal || 'Meeting objective to be analyzed',
+          toneRecommendation: brief.tone_recommendation || 'Professional',
+          provenanceLinks: [] // Will be populated when we add email/slack sources
+        });
+
+      } catch (error) {
+        console.error(`Failed to generate brief for ${event.summary}:`, error);
+
+        // Fallback to basic event data
+        const startTime = event.start?.dateTime || event.start?.date;
+        const endTime = event.end?.dateTime || event.end?.date;
+
+        const formatTime = (timeStr: string) => {
+          try {
+            const date = new Date(timeStr);
+            return date.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+          } catch (e) {
+            return timeStr;
+          }
+        };
+
+        const timeRange = startTime && endTime ?
+          `${formatTime(startTime)} - ${formatTime(endTime)}` :
+          'All day';
+
+        const attendeeNames = (event.attendees || [])
+          .filter(attendee => attendee.email !== user.email)
+          .map(attendee => attendee.displayName || attendee.email?.split('@')[0] || 'Unknown')
+          .slice(0, 3);
+
+        transformedEvents.push({
+          id: event.id,
+          title: event.summary || 'Untitled Meeting',
+          time: timeRange,
+          attendees: attendeeNames,
+          location: event.location,
+          description: event.description,
+          oneLiner: `Meeting with ${attendeeNames.length} attendees`,
+          whyNow: 'Calendar event - brief generation failed',
+          stakes: 'Error generating brief',
+          likelyGoal: 'Meeting objective unavailable',
+          toneRecommendation: 'Professional',
+          provenanceLinks: []
+        });
+      }
+    }
 
     res.json({
       success: true,
