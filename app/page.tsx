@@ -216,24 +216,24 @@ export default function MeetingDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your meetings...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading your meetings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Morning Brief</h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <h1 className="text-3xl font-bold text-foreground">Morning Brief</h1>
+              <p className="text-sm text-muted-foreground mt-1">
                 {currentDate.toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -244,13 +244,13 @@ export default function MeetingDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
-                <div className="flex items-center space-x-2 bg-green-50 text-green-800 px-4 py-2 rounded-lg">
+                <div className="flex items-center space-x-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg">
                   <CheckCircle className="h-4 w-4" />
                   <span className="text-sm font-medium">
                     Calendar Connected
                   </span>
                   {user && (
-                    <span className="text-xs text-green-600">
+                    <span className="text-xs text-muted-foreground">
                       ({user.name})
                     </span>
                   )}
@@ -258,7 +258,7 @@ export default function MeetingDashboard() {
               ) : (
                 <a
                   href="http://localhost:3001/auth/google"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-block"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors inline-block"
                 >
                   Connect Calendar
                 </a>
@@ -277,17 +277,17 @@ export default function MeetingDashboard() {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={returnToToday}
-                  className="p-1 rounded-lg hover:bg-blue-50 transition-colors"
+                  className="p-1 rounded-lg hover:bg-accent transition-colors"
                   title="Return to today"
                 >
-                  <Calendar className="h-6 w-6 text-blue-600 hover:text-blue-700" />
+                  <Calendar className="h-6 w-6 text-primary hover:text-primary/80" />
                 </button>
-                <h2 className="text-xl font-semibold text-gray-900">{formatDateHeader(currentDate)}</h2>
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                <h2 className="text-xl font-semibold text-foreground">{formatDateHeader(currentDate)}</h2>
+                <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">
                   {meetings.length} meetings
                 </span>
                 {isAuthenticated && (
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                  <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full">
                     Live from Google Calendar
                   </span>
                 )}
@@ -300,10 +300,10 @@ export default function MeetingDashboard() {
                     prevDay.setDate(prevDay.getDate() - 1);
                     setCurrentDate(prevDay);
                   }}
-                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                  className="p-2 rounded-lg border border-border hover:bg-accent transition-colors"
                   title="Previous day"
                 >
-                  <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  <ChevronLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                 </button>
                 <button
                   onClick={() => {
@@ -311,10 +311,10 @@ export default function MeetingDashboard() {
                     nextDay.setDate(nextDay.getDate() + 1);
                     setCurrentDate(nextDay);
                   }}
-                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                  className="p-2 rounded-lg border border-border hover:bg-accent transition-colors"
                   title="Next day"
                 >
-                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                  <ChevronRight className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                 </button>
               </div>
             </div>
@@ -322,8 +322,8 @@ export default function MeetingDashboard() {
             {/* Loading State for Date Navigation */}
             {dateLoading && (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-3 text-sm text-gray-600">Loading meetings...</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-3 text-sm text-muted-foreground">Loading meetings...</p>
               </div>
             )}
 
@@ -335,12 +335,12 @@ export default function MeetingDashboard() {
 
                   return isSoloMeeting ? (
                     // Condensed view for solo meetings
-                    <div key={meeting.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div key={meeting.id} className="bg-card rounded-lg shadow-sm border border-border p-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-base font-medium text-gray-900 flex-1">
+                        <h3 className="text-base font-medium text-card-foreground flex-1">
                           {meeting.title}
                         </h3>
-                        <div className="flex items-center space-x-1 text-sm text-gray-500 ml-4">
+                        <div className="flex items-center space-x-1 text-sm text-muted-foreground ml-4">
                           <Clock className="h-4 w-4" />
                           <span>{meeting.time}</span>
                         </div>
@@ -348,14 +348,14 @@ export default function MeetingDashboard() {
                     </div>
                   ) : (
                     // Full view for meetings with other attendees
-                    <div key={meeting.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div key={meeting.id} className="bg-card rounded-lg shadow-sm border border-border p-6">
                       {/* Meeting Header */}
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          <h3 className="text-lg font-semibold text-card-foreground mb-1">
                             {meeting.title}
                           </h3>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                             <div className="flex items-center space-x-1">
                               <Clock className="h-4 w-4" />
                               <span>{meeting.time}</span>
@@ -373,12 +373,12 @@ export default function MeetingDashboard() {
                       {/* Attendees */}
                       {meeting.attendees.length > 0 && (
                         <div className="mb-4">
-                          <h4 className="font-medium text-gray-900 mb-2">Meeting with</h4>
+                          <h4 className="font-medium text-card-foreground mb-2">Meeting with</h4>
                           <div className="flex flex-wrap gap-2">
                             {meeting.attendees.map((attendee, index) => (
                               <span
                                 key={index}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium"
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary/10 text-primary font-medium"
                               >
                                 <Users className="h-3 w-3 mr-1" />
                                 {attendee}
@@ -390,45 +390,45 @@ export default function MeetingDashboard() {
 
                       {/* One-liner */}
                       <div className="mb-4">
-                        <h4 className="font-medium text-gray-900 mb-1">Who & What</h4>
-                        <p className="text-gray-700">{meeting.oneLiner}</p>
+                        <h4 className="font-medium text-card-foreground mb-1">Who & What</h4>
+                        <p className="text-muted-foreground">{meeting.oneLiner}</p>
                       </div>
 
                       {/* Context Grid */}
                       <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-1">Why Now</h4>
-                          <p className="text-sm text-gray-600">{meeting.whyNow}</p>
+                          <h4 className="font-medium text-card-foreground mb-1">Why Now</h4>
+                          <p className="text-sm text-muted-foreground">{meeting.whyNow}</p>
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-1">Stakes</h4>
-                          <p className="text-sm text-gray-600">{meeting.stakes}</p>
+                          <h4 className="font-medium text-card-foreground mb-1">Stakes</h4>
+                          <p className="text-sm text-muted-foreground">{meeting.stakes}</p>
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-1">Likely Goal</h4>
-                          <p className="text-sm text-gray-600">{meeting.likelyGoal}</p>
+                          <h4 className="font-medium text-card-foreground mb-1">Likely Goal</h4>
+                          <p className="text-sm text-muted-foreground">{meeting.likelyGoal}</p>
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-1">Tone</h4>
-                          <p className="text-sm text-gray-600">{meeting.toneRecommendation}</p>
+                          <h4 className="font-medium text-card-foreground mb-1">Tone</h4>
+                          <p className="text-sm text-muted-foreground">{meeting.toneRecommendation}</p>
                         </div>
                       </div>
 
                       {/* Provenance Links */}
                       {meeting.provenanceLinks.length > 0 && (
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Source Material</h4>
+                          <h4 className="font-medium text-card-foreground mb-2">Source Material</h4>
                           <div className="space-y-2">
                             {meeting.provenanceLinks.map((link, index) => (
-                              <div key={index} className="flex items-start space-x-2 p-2 bg-gray-50 rounded">
+                              <div key={index} className="flex items-start space-x-2 p-2 bg-muted rounded">
                                 <div className="flex-shrink-0 mt-0.5">
-                                  {link.type === 'email' && <FileText className="h-4 w-4 text-blue-500" />}
-                                  {link.type === 'slack' && <Link2 className="h-4 w-4 text-green-500" />}
-                                  {link.type === 'call' && <Clock className="h-4 w-4 text-purple-500" />}
+                                  {link.type === 'email' && <FileText className="h-4 w-4 text-primary" />}
+                                  {link.type === 'slack' && <Link2 className="h-4 w-4 text-accent-foreground" />}
+                                  {link.type === 'call' && <Clock className="h-4 w-4 text-primary" />}
                                 </div>
                                 <div className="flex-1">
-                                  <p className="text-sm text-gray-600 italic">&quot;{link.snippet}&quot;</p>
-                                  <a href={link.url} className="text-xs text-blue-600 hover:underline capitalize">
+                                  <p className="text-sm text-muted-foreground italic">&quot;{link.snippet}&quot;</p>
+                                  <a href={link.url} className="text-xs text-primary hover:underline capitalize">
                                     View {link.type} →
                                   </a>
                                 </div>
@@ -444,9 +444,9 @@ export default function MeetingDashboard() {
                 {/* Empty State (when no meetings and not loading) */}
                 {meetings.length === 0 && (
                   <div className="text-center py-12">
-                    <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No meetings today</h3>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-2 text-sm font-medium text-foreground">No meetings today</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {isAuthenticated
                         ? "Enjoy your meeting-free day! Your calendar is connected and we're monitoring for new events."
                         : "Connect your calendar to see upcoming meetings and get smart pre-briefs."
