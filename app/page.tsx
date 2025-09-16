@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, Clock, Users, Link2, FileText, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Users, Link2, FileText, CheckCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface User {
@@ -31,6 +31,73 @@ export default function MeetingDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Helper function to check if a date is today
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // Helper function to format date for display
+  const formatDateHeader = (date: Date) => {
+    if (isToday(date)) {
+      return "Today's Meetings";
+    }
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return "Tomorrow's Meetings";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday's Meetings";
+    } else {
+      return `${date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      })} Meetings`;
+    }
+  };
+
+  // Function to return to today
+  const returnToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  // Function to fetch meetings for a specific date
+  const fetchMeetingsForDate = async (date: Date, authenticated: boolean) => {
+    if (!authenticated) {
+      setMeetings(mockMeetings);
+      return;
+    }
+
+    try {
+      // Format date as YYYY-MM-DD in local timezone (avoid UTC conversion)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+
+      const calendarResponse = await fetch(`http://localhost:3001/api/calendar/today?date=${dateString}`, {
+        credentials: 'include'
+      });
+      const calendarData = await calendarResponse.json();
+
+      if (calendarData.success) {
+        setMeetings(calendarData.events);
+      } else {
+        setMeetings([]);
+      }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      setMeetings([]);
+    }
+  };
 
   // Check authentication status and fetch data
   useEffect(() => {
@@ -46,15 +113,8 @@ export default function MeetingDashboard() {
           setIsAuthenticated(true);
           setUser(authData.user);
 
-          // Fetch today's calendar events
-          const calendarResponse = await fetch('http://localhost:3001/api/calendar/today', {
-            credentials: 'include'
-          });
-          const calendarData = await calendarResponse.json();
-
-          if (calendarData.success) {
-            setMeetings(calendarData.events);
-          }
+          // Fetch calendar events for current date
+          await fetchMeetingsForDate(currentDate, true);
         } else {
           setIsAuthenticated(false);
           // Use mock data when not authenticated
@@ -70,6 +130,47 @@ export default function MeetingDashboard() {
     };
 
     checkAuthAndFetchData();
+  }, []);
+
+  // Fetch meetings when date changes (only if authenticated)
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchMeetingsForDate(currentDate, true);
+    }
+  }, [currentDate, isAuthenticated]);
+
+  // Re-check auth status when returning from OAuth
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+      // Remove the auth parameter from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      // Re-check authentication status after OAuth success
+      const recheckAuth = async () => {
+        setLoading(true);
+        try {
+          const authResponse = await fetch('http://localhost:3001/api/calendar/auth-status', {
+            credentials: 'include'
+          });
+          const authData = await authResponse.json();
+
+          if (authData.authenticated) {
+            setIsAuthenticated(true);
+            setUser(authData.user);
+
+            // Fetch calendar events for current date
+            await fetchMeetingsForDate(currentDate, true);
+          }
+        } catch (error) {
+          console.error('Error re-checking auth:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      recheckAuth();
+    }
   }, []);
 
   // Mock data for fallback
@@ -125,7 +226,7 @@ export default function MeetingDashboard() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Morning Brief</h1>
               <p className="text-sm text-gray-500 mt-1">
-                {new Date().toLocaleDateString('en-US', {
+                {currentDate.toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -164,17 +265,50 @@ export default function MeetingDashboard() {
         <div className="space-y-6">
           {/* Today's Meetings */}
           <div>
-            <div className="flex items-center space-x-2 mb-4">
-              <Calendar className="h-6 w-6 text-blue-600" />
-              <h2 className="text-xl font-semibold text-gray-900">Today&apos;s Meetings</h2>
-              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                {meetings.length} meetings
-              </span>
-              {isAuthenticated && (
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                  Live from Google Calendar
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={returnToToday}
+                  className="p-1 rounded-lg hover:bg-blue-50 transition-colors"
+                  title="Return to today"
+                >
+                  <Calendar className="h-6 w-6 text-blue-600 hover:text-blue-700" />
+                </button>
+                <h2 className="text-xl font-semibold text-gray-900">{formatDateHeader(currentDate)}</h2>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  {meetings.length} meetings
                 </span>
-              )}
+                {isAuthenticated && (
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                    Live from Google Calendar
+                  </span>
+                )}
+              </div>
+              {/* Day Navigation Buttons */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    const prevDay = new Date(currentDate);
+                    prevDay.setDate(prevDay.getDate() - 1);
+                    setCurrentDate(prevDay);
+                  }}
+                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                  title="Previous day"
+                >
+                  <ChevronLeft className="h-5 w-5 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => {
+                    const nextDay = new Date(currentDate);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    setCurrentDate(nextDay);
+                  }}
+                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                  title="Next day"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -191,13 +325,33 @@ export default function MeetingDashboard() {
                           <Clock className="h-4 w-4" />
                           <span>{meeting.time}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <Users className="h-4 w-4" />
-                          <span>{meeting.attendees.length > 0 ? meeting.attendees.join(", ") : "No attendees"}</span>
-                        </div>
+                        {meeting.attendees.length > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <Users className="h-4 w-4" />
+                            <span>{meeting.attendees.join(", ")}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Attendees */}
+                  {meeting.attendees.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Meeting with</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {meeting.attendees.map((attendee, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium"
+                          >
+                            <Users className="h-3 w-3 mr-1" />
+                            {attendee}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* One-liner */}
                   <div className="mb-4">
