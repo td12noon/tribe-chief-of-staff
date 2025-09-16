@@ -2,6 +2,7 @@
 
 import { Calendar, Clock, Users, Link2, FileText, CheckCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import ParticipantDetailModal from "../components/ParticipantDetailModal";
 
 interface User {
   name: string;
@@ -13,7 +14,10 @@ interface Meeting {
   id: string;
   title: string;
   time: string;
-  attendees: string[];
+  attendees: Array<{
+    name: string;
+    email: string;
+  }>;
   oneLiner: string;
   whyNow: string;
   stakes: string;
@@ -33,6 +37,8 @@ export default function MeetingDashboard() {
   const [loading, setLoading] = useState(true);
   const [dateLoading, setDateLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedParticipantEmail, setSelectedParticipantEmail] = useState<string | null>(null);
+  const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
 
   // Helper function to check if a date is today
   const isToday = (date: Date) => {
@@ -187,7 +193,10 @@ export default function MeetingDashboard() {
       id: "1",
       title: "Product Strategy with Insight Partners",
       time: "9:00 AM - 10:00 AM",
-      attendees: ["John Doe", "Sarah Chen"],
+      attendees: [
+        { name: "John Doe", email: "john@example.com" },
+        { name: "Sarah Chen", email: "sarah@insightpartners.com" }
+      ],
       oneLiner: "Leading VC firm specializing in growth-stage software companies",
       whyNow: "Warm intro from Alex Thompson (mutual connection at Scale Venture)",
       stakes: "Series B funding opportunity ($15M-$25M range)",
@@ -202,7 +211,10 @@ export default function MeetingDashboard() {
       id: "2",
       title: "Customer Success Review",
       time: "2:00 PM - 3:00 PM",
-      attendees: ["Mike Johnson", "Lisa Wang"],
+      attendees: [
+        { name: "Mike Johnson", email: "mike@tribe.ai" },
+        { name: "Lisa Wang", email: "lisa@tribe.ai" }
+      ],
       oneLiner: "Q4 customer health review with enterprise accounts team",
       whyNow: "Quarterly business review cycle",
       stakes: "Customer retention and expansion opportunities",
@@ -213,6 +225,17 @@ export default function MeetingDashboard() {
       ]
     }
   ];
+
+  // Participant click handler
+  const handleParticipantClick = (email: string) => {
+    setSelectedParticipantEmail(email);
+    setIsParticipantModalOpen(true);
+  };
+
+  const handleCloseParticipantModal = () => {
+    setIsParticipantModalOpen(false);
+    setSelectedParticipantEmail(null);
+  };
 
   if (loading) {
     return (
@@ -363,7 +386,7 @@ export default function MeetingDashboard() {
                             {meeting.attendees.length > 0 && (
                               <div className="flex items-center space-x-1">
                                 <Users className="h-4 w-4" />
-                                <span>{meeting.attendees.join(", ")}</span>
+                                <span>{meeting.attendees.map(a => a.name).join(", ")}</span>
                               </div>
                             )}
                           </div>
@@ -376,13 +399,14 @@ export default function MeetingDashboard() {
                           <h4 className="font-medium text-card-foreground mb-2">Meeting with</h4>
                           <div className="flex flex-wrap gap-2">
                             {meeting.attendees.map((attendee, index) => (
-                              <span
+                              <button
                                 key={index}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary/10 text-primary font-medium"
+                                onClick={() => handleParticipantClick(attendee.email)}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors cursor-pointer"
                               >
                                 <Users className="h-3 w-3 mr-1" />
-                                {attendee}
-                              </span>
+                                {attendee.name}
+                              </button>
                             ))}
                           </div>
                         </div>
@@ -460,6 +484,15 @@ export default function MeetingDashboard() {
 
         </div>
       </main>
+
+      {/* Participant Detail Modal */}
+      {selectedParticipantEmail && (
+        <ParticipantDetailModal
+          email={selectedParticipantEmail}
+          isOpen={isParticipantModalOpen}
+          onClose={handleCloseParticipantModal}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import { entityService } from './entityService';
+import { enhancedEntityService } from './enhancedEntityService';
 import { aiService } from './aiService';
 import {
   MeetingBrief,
@@ -76,7 +76,7 @@ class BriefService {
       }
 
       try {
-        const resolution = await entityService.resolveAttendee(
+        const resolution = await enhancedEntityService.resolveAttendee(
           attendee.email || '',
           attendee.displayName || undefined
         );

@@ -16,6 +16,7 @@ import passport from './config/passport';
 // Import routes
 import authRoutes from './routes/auth';
 import calendarRoutes from './routes/calendar';
+import participantRoutes from './routes/participants';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -58,6 +59,7 @@ app.use('/api', (req, res, next) => {
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/participants', participantRoutes);
 // app.use('/api/briefs', briefRoutes);
 
 // Error handling middleware

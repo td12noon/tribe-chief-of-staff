@@ -96,11 +96,13 @@ export interface CreatePersonData {
   notable_facts?: string[];
   aliases?: string[];
   confidence?: number;
+  person_type?: 'internal' | 'external' | 'unknown';
 }
 
 export interface EntityResolutionResult {
   person?: Person;
   confidence: number;
-  method: 'exact_email' | 'domain_match' | 'name_similarity' | 'manual' | 'unresolved';
+  method: 'exact_email' | 'domain_match' | 'name_similarity' | 'manual' | 'unresolved' |
+          'manual_override' | 'fuzzy_name' | 'alias_match' | 'internal_inference';
   created_new_entity?: boolean;
 }

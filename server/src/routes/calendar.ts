@@ -120,21 +120,24 @@ router.get('/today', requireAuth, async (req: any, res) => {
           `${formatTime(startTime)} - ${formatTime(endTime)}` :
           'All day';
 
-        // Get attendee display names (excluding the user)
-        const attendeeNames = (event.attendees || [])
+        // Get attendee objects with name and email (excluding the user)
+        const attendeeObjects = (event.attendees || [])
           .filter(attendee => attendee.email !== user.email)
-          .map(attendee => attendee.displayName || attendee.email?.split('@')[0] || 'Unknown')
+          .map(attendee => ({
+            name: attendee.displayName || attendee.email?.split('@')[0] || 'Unknown',
+            email: attendee.email || ''
+          }))
           .slice(0, 3);
 
         transformedEvents.push({
           id: event.id,
           title: event.summary || 'Untitled Meeting',
           time: timeRange,
-          attendees: attendeeNames,
+          attendees: attendeeObjects,
           location: event.location,
           description: event.description,
           // AI-generated brief content
-          oneLiner: brief.one_liner || `Meeting with ${attendeeNames.length} attendees`,
+          oneLiner: brief.one_liner || `Meeting with ${attendeeObjects.length} attendees`,
           whyNow: brief.why_now || 'Calendar event analysis',
           stakes: brief.stakes || 'Business meeting importance',
           likelyGoal: brief.likely_goal || 'Meeting objectives',
@@ -166,19 +169,22 @@ router.get('/today', requireAuth, async (req: any, res) => {
           `${formatTime(startTime)} - ${formatTime(endTime)}` :
           'All day';
 
-        const attendeeNames = (event.attendees || [])
+        const attendeeObjects = (event.attendees || [])
           .filter(attendee => attendee.email !== user.email)
-          .map(attendee => attendee.displayName || attendee.email?.split('@')[0] || 'Unknown')
+          .map(attendee => ({
+            name: attendee.displayName || attendee.email?.split('@')[0] || 'Unknown',
+            email: attendee.email || ''
+          }))
           .slice(0, 3);
 
         transformedEvents.push({
           id: event.id,
           title: event.summary || 'Untitled Meeting',
           time: timeRange,
-          attendees: attendeeNames,
+          attendees: attendeeObjects,
           location: event.location,
           description: event.description,
-          oneLiner: `Meeting with ${attendeeNames.length} attendees`,
+          oneLiner: `Meeting with ${attendeeObjects.length} attendees`,
           whyNow: 'Calendar event - brief generation failed',
           stakes: 'Error generating brief analysis',
           likelyGoal: 'Meeting objective analysis unavailable',
