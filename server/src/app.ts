@@ -78,13 +78,13 @@ app.use((req, res) => {
 if (require.main === module) {
   const startServer = async () => {
     try {
-      // TODO: Initialize database connections when Docker is available
-      // await initializeDatabase();
+      // Initialize database connections
+      await initializeDatabase();
 
-      // TODO: Schedule daily brief jobs when database is ready
-      // scheduleDailyBriefs();
+      // Schedule daily brief jobs
+      scheduleDailyBriefs();
 
-      console.log('⚠️  Running without database (Docker not available)');
+      console.log('✅ Database connections initialized');
 
       app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);

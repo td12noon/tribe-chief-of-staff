@@ -9,8 +9,8 @@ console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 
 
 // Configure Google OAuth strategy
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID!,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  clientID: process.env.GOOGLE_CLIENT_ID || 'dummy-client-id',
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'dummy-client-secret',
   callbackURL: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback',
   scope: [
     'profile',
