@@ -1,9 +1,9 @@
 'use client'
 
-import { Calendar, Clock, Users, Link2, FileText, CheckCircle, ChevronRight, ChevronLeft } from "lucide-react";
+import { Calendar, Clock, Users, Link2, FileText, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import ParticipantDetailModal from "../components/ParticipantDetailModal";
-import Logbook from "../components/Logbook";
+import Link from 'next/link';
 
 interface User {
   name: string;
@@ -50,6 +50,7 @@ export default function MeetingDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedParticipantEmail, setSelectedParticipantEmail] = useState<string | null>(null);
   const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
+  const [expandedEmailContext, setExpandedEmailContext] = useState<{[key: string]: boolean}>({});
 
   // Helper function to check if a date is today
   const isToday = (date: Date) => {
@@ -212,6 +213,13 @@ export default function MeetingDashboard() {
   const handleCloseParticipantModal = () => {
     setIsParticipantModalOpen(false);
     setSelectedParticipantEmail(null);
+  };
+
+  const toggleEmailContext = (meetingId: string) => {
+    setExpandedEmailContext(prev => ({
+      ...prev,
+      [meetingId]: !prev[meetingId]
+    }));
   };
 
   if (loading) {
@@ -401,68 +409,65 @@ export default function MeetingDashboard() {
                         </div>
                       )}
 
-                      {/* One-liner */}
+                      {/* Meeting Brief */}
                       <div className="mb-4">
-                        <h4 className="font-medium text-card-foreground mb-1">Who & What</h4>
-                        <p className="text-muted-foreground">{meeting.oneLiner}</p>
-                      </div>
-
-                      {/* Context Grid */}
-                      <div className="grid md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <h4 className="font-medium text-card-foreground mb-1">Why Now</h4>
-                          <p className="text-sm text-muted-foreground">{meeting.whyNow}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-card-foreground mb-1">Stakes</h4>
-                          <p className="text-sm text-muted-foreground">{meeting.stakes}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-card-foreground mb-1">Likely Goal</h4>
-                          <p className="text-sm text-muted-foreground">{meeting.likelyGoal}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-card-foreground mb-1">Tone</h4>
-                          <p className="text-sm text-muted-foreground">{meeting.toneRecommendation}</p>
+                        <h4 className="font-medium text-card-foreground mb-2">Meeting Brief</h4>
+                        <div className="space-y-2">
+                          <p className="text-muted-foreground">{meeting.oneLiner}</p>
+                          <p className="text-muted-foreground">{meeting.whyNow} {meeting.likelyGoal && `Their likely goal: ${meeting.likelyGoal.toLowerCase()}.`}</p>
                         </div>
                       </div>
 
-                      {/* Enhanced Email Context */}
+                      {/* Condensed Email Context */}
                       {meeting.provenanceLinks.length > 0 && (
                         <div>
-                          <div className="flex items-center space-x-2 mb-2">
+                          <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-card-foreground">Email Context</h4>
-                            <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-medium">
-                              {meeting.provenanceLinks.length} source{meeting.provenanceLinks.length !== 1 ? 's' : ''}
-                            </div>
+                            <button
+                              onClick={() => toggleEmailContext(meeting.id)}
+                              className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+                            >
+                              <span>{meeting.provenanceLinks.length} source{meeting.provenanceLinks.length !== 1 ? 's' : ''}</span>
+                              {expandedEmailContext[meeting.id] ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </button>
                           </div>
-                          <div className="space-y-2">
-                            {meeting.provenanceLinks.map((link, index) => (
-                              <div key={index} className="flex items-start space-x-2 p-3 bg-muted/60 rounded-lg border-l-2 border-primary">
-                                <div className="flex-shrink-0 mt-0.5">
-                                  {link.type === 'email' && <FileText className="h-4 w-4 text-primary" />}
-                                  {link.type === 'slack' && <Link2 className="h-4 w-4 text-accent-foreground" />}
-                                  {link.type === 'call' && <Clock className="h-4 w-4 text-primary" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-muted-foreground italic leading-relaxed">
-                                    &quot;{link.snippet}&quot;
-                                  </p>
-                                  <div className="flex items-center justify-between mt-2">
-                                    <a href={link.url} className="text-xs text-primary hover:underline font-medium capitalize">
-                                      View {link.type} correspondence →
-                                    </a>
-                                    <span className="text-xs text-muted-foreground">
-                                      Enhanced Gmail search
-                                    </span>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Recent email exchanges show {meeting.provenanceLinks.length > 1 ? 'ongoing correspondence' : 'prior discussion'} about {meeting.provenanceLinks[0].snippet.toLowerCase().slice(0, 50)}...
+                          </p>
+
+                          {expandedEmailContext[meeting.id] && (
+                            <div className="space-y-2 border-t border-border pt-3">
+                              {meeting.provenanceLinks.map((link, index) => (
+                                <div key={index} className="flex items-start space-x-2 p-3 bg-muted/60 rounded-lg border-l-2 border-primary">
+                                  <div className="flex-shrink-0 mt-0.5">
+                                    {link.type === 'email' && <FileText className="h-4 w-4 text-primary" />}
+                                    {link.type === 'slack' && <Link2 className="h-4 w-4 text-accent-foreground" />}
+                                    {link.type === 'call' && <Clock className="h-4 w-4 text-primary" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-muted-foreground italic leading-relaxed">
+                                      &quot;{link.snippet}&quot;
+                                    </p>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <a href={link.url} className="text-xs text-primary hover:underline font-medium capitalize">
+                                        View {link.type} correspondence →
+                                      </a>
+                                      <span className="text-xs text-muted-foreground">
+                                        Enhanced Gmail search
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
+                              ))}
+                              <div className="text-xs text-muted-foreground text-center pt-2">
+                                📧 Includes introductions, event-related emails, and direct correspondence
                               </div>
-                            ))}
-                          </div>
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            📧 Includes introductions, event-related emails, and direct correspondence
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -495,8 +500,22 @@ export default function MeetingDashboard() {
 
           {/* Logbook Section */}
           {isAuthenticated && (
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <Logbook />
+            <div className="mt-8 border-t border-border pt-8">
+              <div className="mb-6">
+                <Link
+                  href="/logbook"
+                  className="flex items-center space-x-2 text-lg font-semibold text-card-foreground hover:text-primary transition-colors"
+                >
+                  <Users className="h-5 w-5" />
+                  <span>Contact Logbook</span>
+                  <div className="transform transition-transform hover:translate-x-1">
+                    →
+                  </div>
+                </Link>
+                <p className="text-sm text-muted-foreground mt-1">
+                  View comprehensive directory of your professional contacts and interactions
+                </p>
+              </div>
             </div>
           )}
 
