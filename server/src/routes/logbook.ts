@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { enhancedEntityService } from '../services/enhancedEntityService';
 import { GmailService } from '../services/gmailService';
 import { google } from 'googleapis';
+import { db } from '../config/database';
 
 const router = Router();
 
@@ -58,6 +59,41 @@ const requireAuth = (req: any, res: any, next: any) => {
   next();
 };
 
+// Helper function to get meeting statistics for a person by email
+async function getMeetingStats(email: string): Promise<{count: number, lastMeeting: Date | null}> {
+  try {
+    const result = await db.query(`
+      SELECT
+        COUNT(*) as meeting_count,
+        MAX(ce.start_datetime) as last_meeting
+      FROM event_attendees ea
+      JOIN calendar_events ce ON ea.event_id = ce.id
+      WHERE LOWER(ea.email) = LOWER($1)
+        AND ce.start_datetime IS NOT NULL
+        AND ce.start_datetime < NOW() -- Only count past meetings
+    `, [email]);
+
+    return {
+      count: parseInt(result.rows[0]?.meeting_count || '0'),
+      lastMeeting: result.rows[0]?.last_meeting || null
+    };
+  } catch (error) {
+    // Database not available - return placeholder data
+    console.warn(`Database unavailable for meeting stats (${email}), using memory fallback`);
+    return { count: 0, lastMeeting: null };
+  }
+}
+
+// Helper function to check if database is available
+async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await db.query('SELECT 1');
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 // GET /logbook - Get comprehensive user/company/email logbook
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -70,6 +106,10 @@ router.get('/', requireAuth, async (req, res) => {
     }
 
     console.log('📚 Generating comprehensive logbook...');
+
+    // Check database availability
+    const dbAvailable = await isDatabaseAvailable();
+    console.log(`📚 Database available: ${dbAvailable}`);
 
     // Set up Gmail service with user's tokens
     const oauth2Client = new google.auth.OAuth2(
@@ -99,13 +139,11 @@ router.get('/', requireAuth, async (req, res) => {
 
       const batchPromises = batch.map(async (person) => {
         try {
-          // Get email activity for this person
-          const emailActivity = await gmailService.findRecentEmailActivity(person.emails[0]);
-
-          // For now, we'll use placeholder data for meeting interactions
-          // TODO: Integrate with calendar/meeting database when available
-          const meetingCount = 0;
-          const lastMeeting = null;
+          // Get email activity and meeting stats for this person
+          const [emailActivity, meetingStats] = await Promise.all([
+            gmailService.findRecentEmailActivity(person.emails[0]),
+            getMeetingStats(person.emails[0])
+          ]);
 
           const entry: LogbookEntry = {
             person: {
@@ -123,10 +161,10 @@ router.get('/', requireAuth, async (req, res) => {
               recentEmails: [] // TODO: Implement recent email details if needed
             },
             interactions: {
-              meetingCount,
-              lastMeeting,
+              meetingCount: meetingStats.count,
+              lastMeeting: meetingStats.lastMeeting,
               emailCount: emailActivity.count,
-              totalInteractions: emailActivity.count + meetingCount
+              totalInteractions: emailActivity.count + meetingStats.count
             }
           };
 
@@ -134,7 +172,15 @@ router.get('/', requireAuth, async (req, res) => {
         } catch (error) {
           console.warn(`Failed to process person ${person.name}:`, error);
 
-          // Return basic entry without email activity
+          // Try to get meeting stats even if email fails
+          let meetingStats: {count: number, lastMeeting: Date | null} = { count: 0, lastMeeting: null };
+          try {
+            meetingStats = await getMeetingStats(person.emails[0]);
+          } catch (meetingError) {
+            console.warn(`Also failed to get meeting stats for ${person.name}`);
+          }
+
+          // Return basic entry without email activity but with meeting stats
           return {
             person: {
               id: person.id,
@@ -151,10 +197,10 @@ router.get('/', requireAuth, async (req, res) => {
               recentEmails: []
             },
             interactions: {
-              meetingCount: 0,
-              lastMeeting: null,
+              meetingCount: meetingStats.count,
+              lastMeeting: meetingStats.lastMeeting,
               emailCount: 0,
-              totalInteractions: 0
+              totalInteractions: meetingStats.count
             }
           } as LogbookEntry;
         }
