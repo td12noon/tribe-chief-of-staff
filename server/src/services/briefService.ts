@@ -1,6 +1,8 @@
 import { db } from '../config/database';
 import { enhancedEntityService } from './enhancedEntityService';
 import { aiService } from './aiService';
+import { GmailService } from './gmailService';
+import { google } from 'googleapis';
 import {
   MeetingBrief,
   MeetingAttendee,
@@ -38,23 +40,38 @@ class BriefService {
   private briefMemoryStore: Map<string, MeetingBrief> = new Map();
 
   // Generate a comprehensive meeting brief
-  async generateBrief(event: CalendarEvent, userId: string, userEmail: string): Promise<MeetingBrief> {
+  async generateBrief(event: CalendarEvent, userId: string, userEmail: string, userTokens?: { access_token: string, refresh_token: string }): Promise<MeetingBrief> {
     console.log('🤖 Generating brief for meeting:', event.summary);
 
     // Step 1: Resolve all attendees to people/companies
     const resolvedAttendees = await this.resolveEventAttendees(event, userEmail);
 
-    // Step 2: Generate AI brief content
+    // Step 2: Gather email context with enhanced search
+    let emailContext: ProvenanceLink[] = [];
+    console.log(`🔍 Email context check: userTokens=${!!userTokens}, attendees=${resolvedAttendees.length}`);
+    if (userTokens && resolvedAttendees.length > 0) {
+      try {
+        console.log(`📧 Starting enhanced email context gathering...`);
+        emailContext = await this.gatherEmailContext(resolvedAttendees, userEmail, userTokens, event);
+        console.log(`📧 Found ${emailContext.length} relevant email contexts`);
+      } catch (error) {
+        console.warn('Failed to gather email context:', error);
+      }
+    } else {
+      console.log(`⚠️ Skipping email context: userTokens=${!!userTokens}, attendees=${resolvedAttendees.length}`);
+    }
+
+    // Step 3: Generate AI brief content
     const briefContent = await this.generateAIBrief({
       event,
       resolvedAttendees,
       userEmail
     });
 
-    // Step 3: Save to database
-    const brief = await this.saveBrief(event, userId, briefContent, resolvedAttendees);
+    // Step 4: Save to database with email context
+    const brief = await this.saveBrief(event, userId, briefContent, resolvedAttendees, emailContext);
 
-    console.log('✅ Generated brief with', resolvedAttendees.length, 'attendees');
+    console.log('✅ Generated brief with', resolvedAttendees.length, 'attendees and', emailContext.length, 'email sources');
     return brief;
   }
 
@@ -101,6 +118,169 @@ class BriefService {
     }
 
     return resolvedAttendees;
+  }
+
+  // Gather email context for meeting attendees (Enhanced with event-specific search)
+  private async gatherEmailContext(
+    resolvedAttendees: any[],
+    userEmail: string,
+    userTokens: { access_token: string, refresh_token: string },
+    event?: CalendarEvent
+  ): Promise<ProvenanceLink[]> {
+    const startTime = Date.now();
+
+    try {
+      // Set up OAuth client with user's tokens
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI
+      );
+
+      oauth2Client.setCredentials({
+        access_token: userTokens.access_token,
+        refresh_token: userTokens.refresh_token,
+      });
+
+      const gmailService = new GmailService(oauth2Client);
+      const attendeeEmails = resolvedAttendees.map(a => a.email);
+
+      console.log(`📧 Searching enhanced email context for ${attendeeEmails.length} attendees...`);
+
+      // Search for multiple types of email context with timeout
+      const emailSearches = await Promise.race([
+        Promise.all([
+          // 1. Introduction emails (existing functionality)
+          gmailService.findIntroductionEmails(userEmail, attendeeEmails),
+
+          // 2. Event-related emails (new functionality)
+          event?.summary && event?.start?.dateTime ?
+            gmailService.findEventRelatedEmails(
+              event.summary,
+              attendeeEmails,
+              new Date(event.start.dateTime),
+              userEmail
+            ) : Promise.resolve([]),
+
+          // 3. Direct correspondence (new functionality)
+          gmailService.findDirectCorrespondence(userEmail, attendeeEmails, 30)
+        ]),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Gmail search timeout')), 15000) // 15s timeout for enhanced search
+        )
+      ]);
+
+      const [introductions, eventRelated, correspondence] = emailSearches;
+
+      // Combine and deduplicate email contexts
+      const allEmailContexts = [...introductions, ...eventRelated, ...correspondence];
+      const uniqueContexts = allEmailContexts.filter((context, index, array) =>
+        array.findIndex(c => c.threadId === context.threadId) === index
+      );
+
+      console.log(`📧 Found ${introductions.length} introductions, ${eventRelated.length} event-related, ${correspondence.length} correspondence emails`);
+
+      // Convert to provenance links with enhanced relevance scoring
+      const provenanceLinks: ProvenanceLink[] = uniqueContexts.map(context => ({
+        id: `email_${context.threadId}`,
+        brief_id: '', // Will be set when saving
+        source_type: 'email' as const,
+        source_url: context.gmailUrl,
+        snippet: context.snippet,
+        source_timestamp: context.timestamp,
+        confidence: this.calculateEnhancedEmailRelevance(context, attendeeEmails, event),
+        created_at: new Date()
+      }));
+
+      // Sort by relevance and recency
+      const sortedLinks = provenanceLinks.sort((a, b) => {
+        // Primary sort: confidence
+        const confidenceDiff = b.confidence - a.confidence;
+        if (Math.abs(confidenceDiff) > 0.1) return confidenceDiff;
+
+        // Secondary sort: recency
+        return (b.source_timestamp?.getTime() || 0) - (a.source_timestamp?.getTime() || 0);
+      });
+
+      const duration = Date.now() - startTime;
+      console.log(`📧 Enhanced email context gathered in ${duration}ms: ${sortedLinks.length} unique sources`);
+
+      return sortedLinks.slice(0, 8); // Increased limit for enhanced email context
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.warn(`❌ Email context failed after ${duration}ms:`, error);
+      return []; // Graceful degradation - continue without email context
+    }
+  }
+
+  // Calculate email relevance score for prioritization
+  private calculateEmailRelevance(intro: any, attendeeEmails: string[]): number {
+    let score = 0.5; // Base score
+
+    // Higher score if more meeting attendees are mentioned in the email
+    const mentionedAttendees = attendeeEmails.filter(email =>
+      intro.participants.some((p: string) =>
+        p.toLowerCase().includes(email.toLowerCase().split('@')[0])
+      )
+    );
+    score += mentionedAttendees.length * 0.2;
+
+    // Recent emails are more relevant
+    const daysAgo = (Date.now() - intro.timestamp.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysAgo < 7) score += 0.3;
+    else if (daysAgo < 30) score += 0.1;
+
+    // Subject relevance
+    if (intro.subject?.toLowerCase().includes('introduce')) score += 0.2;
+
+    return Math.min(score, 1.0); // Cap at 1.0
+  }
+
+  // Enhanced email relevance calculation for event-specific search
+  private calculateEnhancedEmailRelevance(context: any, attendeeEmails: string[], event?: CalendarEvent): number {
+    let score = 0.4; // Base score
+
+    // Participant overlap - highest importance
+    const mentionedAttendees = attendeeEmails.filter(email =>
+      context.participants.some((p: string) =>
+        p.toLowerCase().includes(email.toLowerCase()) ||
+        p.toLowerCase().includes(email.toLowerCase().split('@')[0])
+      )
+    );
+    score += mentionedAttendees.length * 0.25;
+
+    // Recency scoring - recent emails more relevant
+    const daysAgo = (Date.now() - context.timestamp.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysAgo < 3) score += 0.25;        // Very recent
+    else if (daysAgo < 7) score += 0.20;   // Recent
+    else if (daysAgo < 14) score += 0.15;  // Somewhat recent
+    else if (daysAgo < 30) score += 0.10;  // Less recent
+
+    // Subject relevance to meeting/event
+    const subject = context.subject?.toLowerCase() || '';
+    const eventTitle = event?.summary?.toLowerCase() || '';
+
+    // Event title keyword overlap
+    if (eventTitle) {
+      const eventWords = eventTitle.split(/\s+/).filter(w => w.length > 3);
+      const subjectWords = subject.split(/\s+/);
+      const overlap = eventWords.filter(ew => subjectWords.some((sw: string) => sw.includes(ew) || ew.includes(sw)));
+      score += overlap.length * 0.10;
+    }
+
+    // Context type bonuses
+    if (subject.includes('introduce') || subject.includes('introduction')) score += 0.15;
+    if (subject.includes('meeting') || subject.includes('call')) score += 0.10;
+    if (subject.includes('follow up') || subject.includes('followup')) score += 0.10;
+    if (subject.includes('agenda') || subject.includes('prep')) score += 0.15;
+
+    // Snippet relevance
+    const snippet = context.snippet?.toLowerCase() || '';
+    if (snippet.includes('meeting') || snippet.includes('call')) score += 0.05;
+    if (snippet.includes('discuss') || snippet.includes('agenda')) score += 0.05;
+
+    return Math.min(score, 1.0); // Cap at 1.0
   }
 
   // Generate AI-powered brief content using Anthropic Claude
@@ -302,7 +482,8 @@ class BriefService {
     event: CalendarEvent,
     userId: string,
     briefContent: any,
-    resolvedAttendees: any[]
+    resolvedAttendees: any[],
+    provenanceLinks: ProvenanceLink[] = []
   ): Promise<MeetingBrief> {
     const eventId = event.id || `generated_${Date.now()}_${Math.random()}`;
     const briefId = `brief_${eventId}`;
@@ -320,10 +501,10 @@ class BriefService {
       generated_at: now,
       model_version: briefContent.model_version,
       confidence_score: briefContent.confidence_score,
-      source_count: 0,
-      has_email_context: false,
-      has_slack_context: false,
-      has_call_context: false,
+      source_count: provenanceLinks.length,
+      has_email_context: provenanceLinks.some(p => p.source_type === 'email'),
+      has_slack_context: provenanceLinks.some(p => p.source_type === 'slack'),
+      has_call_context: provenanceLinks.some(p => p.source_type === 'call'),
       created_at: now,
       updated_at: now,
       attendees: resolvedAttendees.map(a => ({
@@ -337,7 +518,11 @@ class BriefService {
         resolution_confidence: a.confidence,
         created_at: now,
         person: a.person
-      } as MeetingAttendee))
+      } as MeetingAttendee)),
+      provenance_links: provenanceLinks.map(link => ({
+        ...link,
+        brief_id: briefId
+      }))
     };
 
     if (this.useDatabaseFallback) {
@@ -372,16 +557,21 @@ class BriefService {
           briefContent.tone_recommendation,
           briefContent.model_version,
           briefContent.confidence_score,
-          0, // source_count - will be updated when we add email/slack
-          false, // has_email_context
-          false, // has_slack_context
-          false  // has_call_context
+          provenanceLinks.length, // source_count
+          provenanceLinks.some(p => p.source_type === 'email'), // has_email_context
+          provenanceLinks.some(p => p.source_type === 'slack'), // has_slack_context
+          provenanceLinks.some(p => p.source_type === 'call')   // has_call_context
         ]);
 
         const dbBrief = briefResult.rows[0];
         await this.saveAttendees(dbBrief.id, resolvedAttendees);
 
-        console.log('💾 Brief saved to database');
+        // Save provenance links if any
+        if (provenanceLinks.length > 0) {
+          await this.saveProvenanceLinks(dbBrief.id, provenanceLinks);
+        }
+
+        console.log('💾 Brief saved to database with', provenanceLinks.length, 'provenance links');
         return brief;
 
       } catch (error) {
@@ -425,6 +615,37 @@ class BriefService {
       console.log(`💾 Saved ${resolvedAttendees.length} attendees for brief`);
     } catch (error) {
       console.error('Failed to save attendees:', error);
+    }
+  }
+
+  // Save provenance links for a brief
+  private async saveProvenanceLinks(briefId: string, provenanceLinks: ProvenanceLink[]) {
+    if (!this.useDatabaseFallback) return;
+
+    try {
+      // Clear existing provenance links for this brief
+      await db.query('DELETE FROM provenance_links WHERE brief_id = $1', [briefId]);
+
+      // Insert new provenance links
+      for (const link of provenanceLinks) {
+        await db.query(`
+          INSERT INTO provenance_links (
+            brief_id, source_type, source_url, snippet, source_timestamp,
+            confidence
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          briefId,
+          link.source_type,
+          link.source_url,
+          link.snippet,
+          link.source_timestamp,
+          link.confidence
+        ]);
+      }
+
+      console.log(`📧 Saved ${provenanceLinks.length} provenance links for brief`);
+    } catch (error) {
+      console.error('Failed to save provenance links:', error);
     }
   }
 

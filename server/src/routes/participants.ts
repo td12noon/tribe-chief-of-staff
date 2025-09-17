@@ -68,102 +68,55 @@ router.get('/:email', async (req, res) => {
 
     console.log(`📊 Fetching participant details for: ${email}`);
 
-    // Create mock data when database is unavailable
-    const emailName = email.split('@')[0].replace(/[._]/g, ' ').split(' ').map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
+    // Use real entity resolution service
+    const resolution = await enhancedEntityService.resolveAttendee(email);
 
-    const domain = email.split('@')[1];
-    const isTribal = domain === 'tribe.ai';
+    if (!resolution.person) {
+      // Return minimal info when person not resolved
+      return res.json({
+        person: null,
+        aliases: [],
+        entityResolution: {
+          method: resolution.method,
+          confidence: resolution.confidence,
+          riskFlags: []
+        },
+        recentInteractions: [],
+        projects: []
+      });
+    }
 
-    const mockParticipantDetails: ParticipantDetails = {
+    // Build response from real entity data
+    const participantDetails: ParticipantDetails = {
       person: {
-        id: `mock_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-        name: emailName,
-        emails: [email],
-        primaryEmail: email,
-        company: {
-          id: `mock_company_${domain.replace(/\./g, '_')}`,
-          name: isTribal ? 'Tribe AI' : domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
-          domain: domain,
-          industry: isTribal ? 'AI/ML Services' : 'Technology',
-          companyType: isTribal ? 'internal' : 'external'
-        },
-        title: isTribal ? 'Team Member' : 'External Contact',
-        confidence: 0.75,
-        lastInteraction: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-        interactionCount: Math.floor(Math.random() * 20) + 1,
-        notableFacts: [
-          'Recently active in meetings',
-          isTribal ? 'Internal team member' : 'External stakeholder',
-          'Regularly participates in discussions'
-        ]
+        id: resolution.person.id,
+        name: resolution.person.name,
+        emails: resolution.person.emails,
+        primaryEmail: resolution.person.emails[0] || email,
+        company: resolution.person.company ? {
+          id: resolution.person.company.id,
+          name: resolution.person.company.name,
+          domain: resolution.person.company.domain,
+          industry: resolution.person.company.industry,
+          companyType: 'external' as string // Type assertion for compatibility
+        } : undefined,
+        title: resolution.person.title,
+        confidence: resolution.confidence,
+        interactionCount: 0, // TODO: Calculate from database
+        notableFacts: resolution.person.notable_facts || []
       },
-      aliases: [
-        {
-          id: `alias_1_${email}`,
-          aliasName: emailName,
-          aliasEmail: email,
-          context: 'primary',
-          confidence: 1.0,
-          verified: true
-        }
-      ],
+      aliases: [], // TODO: Fetch from database
       entityResolution: {
-        method: 'exact_email',
-        confidence: 0.9,
-        confidenceBreakdown: {
-          identity: 0.9,
-          completeness: 0.8,
-          freshness: 0.85,
-          reliability: 0.95
-        },
-        riskFlags: process.env.NODE_ENV !== 'production' ? ['Demo mode - mock data'] : []
+        method: resolution.method,
+        confidence: resolution.confidence,
+        riskFlags: []
       },
-      recentInteractions: [
-        {
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-          type: 'meeting',
-          context: 'Team sync meeting'
-        },
-        {
-          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-          type: 'email',
-          context: 'Project discussion'
-        }
-      ],
-      projects: isTribal ? [
-        {
-          id: 'project_1',
-          name: 'Enhanced Entity Resolution',
-          status: 'active',
-          role: 'Team Member',
-          isActive: true
-        }
-      ] : [
-        {
-          id: 'project_ext_1',
-          name: 'Partnership Discussion',
-          status: 'in_progress',
-          role: 'External Stakeholder',
-          isActive: true
-        }
-      ]
+      recentInteractions: [], // TODO: Fetch from database
+      projects: [] // TODO: Fetch from database
     };
 
-    console.log(`✅ Retrieved mock participant details for ${emailName}: ${mockParticipantDetails.aliases.length} aliases, ${mockParticipantDetails.projects.length} projects`);
-
-    return res.json(mockParticipantDetails);
-
-    // TODO: Uncomment when database is available and remove mock data above
-    /*
-    // Original database-driven implementation
-    const resolution = await enhancedEntityService.resolveAttendee(email);
-    if (!resolution.person) {
-      return res.json({ email, resolved: false, method: resolution.method, confidence: resolution.confidence });
-    }
-    // ... rest of database implementation
-    */
+    console.log(`✅ Retrieved real participant details for ${resolution.person.name}: confidence ${resolution.confidence}`);
+    return res.json(participantDetails);
 
   } catch (error) {
     console.error('Error fetching participant details:', error);

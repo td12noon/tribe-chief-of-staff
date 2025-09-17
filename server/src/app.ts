@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables FIRST
-dotenv.config();
+// Load environment variables FIRST - use root .env file
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import express from 'express';
 import cors from 'cors';
@@ -17,6 +17,7 @@ import passport from './config/passport';
 import authRoutes from './routes/auth';
 import calendarRoutes from './routes/calendar';
 import participantRoutes from './routes/participants';
+import logbookRoutes from './routes/logbook';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,6 +61,7 @@ app.use('/api', (req, res, next) => {
 app.use('/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/participants', participantRoutes);
+app.use('/api/logbook', logbookRoutes);
 // app.use('/api/briefs', briefRoutes);
 
 // Error handling middleware

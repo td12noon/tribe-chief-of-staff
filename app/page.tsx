@@ -3,11 +3,21 @@
 import { Calendar, Clock, Users, Link2, FileText, CheckCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import ParticipantDetailModal from "../components/ParticipantDetailModal";
+import Logbook from "../components/Logbook";
 
 interface User {
   name: string;
   email: string;
   avatarUrl?: string;
+}
+
+interface AuthData {
+  authenticated: boolean;
+  user?: User;
+  connections?: {
+    calendar: boolean;
+    gmail: boolean;
+  };
 }
 
 interface Meeting {
@@ -33,6 +43,7 @@ interface Meeting {
 export default function MeetingDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [connections, setConnections] = useState<{calendar: boolean, gmail: boolean}>({calendar: false, gmail: false});
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateLoading, setDateLoading] = useState(false);
@@ -83,7 +94,7 @@ export default function MeetingDashboard() {
     }
 
     if (!authenticated) {
-      setMeetings(mockMeetings);
+      setMeetings([]);
       setDateLoading(false);
       return;
     }
@@ -126,18 +137,20 @@ export default function MeetingDashboard() {
         if (authData.authenticated) {
           setIsAuthenticated(true);
           setUser(authData.user);
+          setConnections(authData.connections || {calendar: false, gmail: false});
 
           // Fetch calendar events for current date
           await fetchMeetingsForDate(currentDate, true);
         } else {
           setIsAuthenticated(false);
-          // Use mock data when not authenticated
-          setMeetings(mockMeetings);
+          setConnections({calendar: false, gmail: false});
+          // Show empty state when not authenticated
+          setMeetings([]);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
-        // Fallback to mock data on error
-        setMeetings(mockMeetings);
+        // Show empty state on error
+        setMeetings([]);
       } finally {
         setLoading(false);
       }
@@ -172,6 +185,7 @@ export default function MeetingDashboard() {
           if (authData.authenticated) {
             setIsAuthenticated(true);
             setUser(authData.user);
+            setConnections(authData.connections || {calendar: false, gmail: false});
 
             // Fetch calendar events for current date
             await fetchMeetingsForDate(currentDate, true);
@@ -187,44 +201,7 @@ export default function MeetingDashboard() {
     }
   }, []);
 
-  // Mock data for fallback
-  const mockMeetings = [
-    {
-      id: "1",
-      title: "Product Strategy with Insight Partners",
-      time: "9:00 AM - 10:00 AM",
-      attendees: [
-        { name: "John Doe", email: "john@example.com" },
-        { name: "Sarah Chen", email: "sarah@insightpartners.com" }
-      ],
-      oneLiner: "Leading VC firm specializing in growth-stage software companies",
-      whyNow: "Warm intro from Alex Thompson (mutual connection at Scale Venture)",
-      stakes: "Series B funding opportunity ($15M-$25M range)",
-      likelyGoal: "Initial partnership discussion and portfolio fit assessment",
-      toneRecommendation: "Professional but engaging - this is relationship building",
-      provenanceLinks: [
-        { type: "email", snippet: "I'd love to introduce you to Sarah at Insight...", url: "#" },
-        { type: "slack", snippet: "FYI - meeting with Insight tomorrow", url: "#" }
-      ]
-    },
-    {
-      id: "2",
-      title: "Customer Success Review",
-      time: "2:00 PM - 3:00 PM",
-      attendees: [
-        { name: "Mike Johnson", email: "mike@tribe.ai" },
-        { name: "Lisa Wang", email: "lisa@tribe.ai" }
-      ],
-      oneLiner: "Q4 customer health review with enterprise accounts team",
-      whyNow: "Quarterly business review cycle",
-      stakes: "Customer retention and expansion opportunities",
-      likelyGoal: "Review churn risks and identify expansion opportunities",
-      toneRecommendation: "Data-focused, solution-oriented",
-      provenanceLinks: [
-        { type: "call", snippet: "Last call discussed Q4 retention targets...", url: "#" }
-      ]
-    }
-  ];
+  // No mock data - show empty state when not connected
 
   // Participant click handler
   const handleParticipantClick = (email: string) => {
@@ -267,24 +244,36 @@ export default function MeetingDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
-                <div className="flex items-center space-x-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    Calendar Connected
-                  </span>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg">
+                    <CheckCircle className="h-4 w-4" />
+                    <div className="text-sm">
+                      <div className="font-medium">
+                        Calendar + Gmail Connected
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Email scanning enabled for meeting context
+                      </div>
+                    </div>
+                  </div>
                   {user && (
-                    <span className="text-xs text-muted-foreground">
-                      ({user.name})
+                    <span className="text-sm text-muted-foreground">
+                      {user.name}
                     </span>
                   )}
                 </div>
               ) : (
-                <a
-                  href="http://localhost:3001/auth/google"
-                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors inline-block"
-                >
-                  Connect Calendar
-                </a>
+                <div className="text-right">
+                  <a
+                    href="http://localhost:3001/auth/google"
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors inline-block"
+                  >
+                    Connect Calendar + Gmail
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Connects calendar + scans emails for meeting context
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -438,27 +427,49 @@ export default function MeetingDashboard() {
                         </div>
                       </div>
 
-                      {/* Provenance Links */}
+                      {/* Enhanced Email Context */}
                       {meeting.provenanceLinks.length > 0 && (
                         <div>
-                          <h4 className="font-medium text-card-foreground mb-2">Source Material</h4>
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h4 className="font-medium text-card-foreground">Email Context</h4>
+                            <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-medium">
+                              {meeting.provenanceLinks.length} source{meeting.provenanceLinks.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
                           <div className="space-y-2">
                             {meeting.provenanceLinks.map((link, index) => (
-                              <div key={index} className="flex items-start space-x-2 p-2 bg-muted rounded">
+                              <div key={index} className="flex items-start space-x-2 p-3 bg-muted/60 rounded-lg border-l-2 border-primary">
                                 <div className="flex-shrink-0 mt-0.5">
                                   {link.type === 'email' && <FileText className="h-4 w-4 text-primary" />}
                                   {link.type === 'slack' && <Link2 className="h-4 w-4 text-accent-foreground" />}
                                   {link.type === 'call' && <Clock className="h-4 w-4 text-primary" />}
                                 </div>
-                                <div className="flex-1">
-                                  <p className="text-sm text-muted-foreground italic">&quot;{link.snippet}&quot;</p>
-                                  <a href={link.url} className="text-xs text-primary hover:underline capitalize">
-                                    View {link.type} →
-                                  </a>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-muted-foreground italic leading-relaxed">
+                                    &quot;{link.snippet}&quot;
+                                  </p>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <a href={link.url} className="text-xs text-primary hover:underline font-medium capitalize">
+                                      View {link.type} correspondence →
+                                    </a>
+                                    <span className="text-xs text-muted-foreground">
+                                      Enhanced Gmail search
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             ))}
                           </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            📧 Includes introductions, event-related emails, and direct correspondence
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Enhanced Context Indicator */}
+                      {meeting.provenanceLinks.length === 0 && (
+                        <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border-l-2 border-muted-foreground/20">
+                          💡 No recent email context found. AI analysis based on calendar data and participant insights.
                         </div>
                       )}
                     </div>
@@ -472,8 +483,8 @@ export default function MeetingDashboard() {
                     <h3 className="mt-2 text-sm font-medium text-foreground">No meetings today</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {isAuthenticated
-                        ? "Enjoy your meeting-free day! Your calendar is connected and we're monitoring for new events."
-                        : "Connect your calendar to see upcoming meetings and get smart pre-briefs."
+                        ? "Enjoy your meeting-free day! Your calendar and Gmail are connected and we're monitoring for new events."
+                        : "Connect your Calendar + Gmail to see upcoming meetings with smart pre-briefs and email context."
                       }
                     </p>
                   </div>
@@ -481,6 +492,13 @@ export default function MeetingDashboard() {
               </div>
             )}
           </div>
+
+          {/* Logbook Section */}
+          {isAuthenticated && (
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <Logbook />
+            </div>
+          )}
 
         </div>
       </main>

@@ -227,7 +227,13 @@ export default function ParticipantDetailModal({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-muted-foreground text-sm">Person not resolved in database</p>
+                      <div className="text-center py-4">
+                        <User className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground text-sm font-medium">Person Not Found</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          This contact hasn't been resolved in our system yet.
+                        </p>
+                      </div>
                     )}
                   </div>
 
@@ -278,9 +284,9 @@ export default function ParticipantDetailModal({
                 <div className="space-y-4">
 
                   {/* Aliases */}
-                  {details.aliases.length > 0 && (
-                    <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                      <h3 className="font-medium text-card-foreground mb-3">Known Aliases</h3>
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                    <h3 className="font-medium text-card-foreground mb-3">Known Aliases</h3>
+                    {details.aliases.length > 0 ? (
                       <div className="space-y-2">
                         {details.aliases.map((alias) => (
                           <div key={alias.id} className="flex items-center justify-between text-sm">
@@ -299,8 +305,12 @@ export default function ParticipantDetailModal({
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        No aliases found for this contact.
+                      </p>
+                    )}
+                  </div>
 
                   {/* Projects */}
                   {details.projects.length > 0 && (

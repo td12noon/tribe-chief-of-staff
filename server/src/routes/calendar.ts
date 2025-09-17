@@ -93,8 +93,17 @@ router.get('/today', requireAuth, async (req: any, res) => {
         // Generate or retrieve brief for this event
         let brief = await briefService.getBriefByEventId(event.id);
         if (!brief) {
-          console.log(`🤖 Generating new AI brief for: ${event.summary}`);
-          brief = await briefService.generateBrief(event as any, user.id, user.email);
+          console.log(`🤖 Generating new AI brief with Gmail context for: ${event.summary}`);
+
+          // Pass user tokens for Gmail integration
+          console.log(`🔑 User token check: access_token=${!!user.access_token}, refresh_token=${!!user.refresh_token}`);
+          const userTokens = user.access_token ? {
+            access_token: user.access_token,
+            refresh_token: user.refresh_token // Can be undefined, Gmail API will handle token refresh
+          } : undefined;
+          console.log(`🔑 UserTokens created: ${!!userTokens}`);
+
+          brief = await briefService.generateBrief(event as any, user.id, user.email, userTokens);
         } else {
           console.log(`📖 Using existing brief for: ${event.summary}`);
         }
@@ -142,7 +151,11 @@ router.get('/today', requireAuth, async (req: any, res) => {
           stakes: brief.stakes || 'Business meeting importance',
           likelyGoal: brief.likely_goal || 'Meeting objectives',
           toneRecommendation: brief.tone_recommendation || 'Professional approach',
-          provenanceLinks: [] // Will be populated when we add email/slack sources
+          provenanceLinks: (brief.provenance_links || []).map(link => ({
+            type: link.source_type,
+            snippet: link.snippet,
+            url: link.source_url
+          }))
         });
 
       } catch (error) {
@@ -231,6 +244,10 @@ router.get('/auth-status', (req: any, res) => {
         name: user.name,
         email: user.email,
         avatarUrl: user.avatar_url
+      },
+      connections: {
+        calendar: true, // We know calendar is connected if user has access_token
+        gmail: true     // Gmail scope is included in OAuth, same token works for both
       }
     });
   } else {

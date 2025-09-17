@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
   try {
-    const email = params.email;
+    const { email } = await params;
 
     // Forward the request to the backend server
     const backendUrl = `http://localhost:3001/api/participants/${encodeURIComponent(email)}`;

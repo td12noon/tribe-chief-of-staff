@@ -391,7 +391,15 @@ class EnhancedEntityService {
 
   // All the existing methods from the original entityService
   async findPersonByEmail(email: string): Promise<Person | null> {
-    if (!this.useDatabaseFallback) return null;
+    if (!this.useDatabaseFallback) {
+      // Memory store fallback - search for existing person with this email
+      for (const person of this.personMemoryStore.values()) {
+        if (person.emails.includes(email.toLowerCase())) {
+          return person;
+        }
+      }
+      return null;
+    }
 
     try {
       const query = `
@@ -439,6 +447,13 @@ class EnhancedEntityService {
     } catch (error) {
       console.warn('Database unavailable for entity lookup:', error);
       this.useDatabaseFallback = false;
+
+      // Fallback to memory store when database fails
+      for (const person of this.personMemoryStore.values()) {
+        if (person.emails.includes(email.toLowerCase())) {
+          return person;
+        }
+      }
       return null;
     }
   }
@@ -611,6 +626,47 @@ class EnhancedEntityService {
     }
 
     return localPart.charAt(0).toUpperCase() + localPart.slice(1);
+  }
+
+  // Get all people for logbook generation
+  async getAllPeople(): Promise<Person[]> {
+    if (this.useDatabaseFallback) {
+      try {
+        const peopleQuery = `
+          SELECT p.*, c.name as company_name, c.domain as company_domain, c.industry as company_industry
+          FROM people p
+          LEFT JOIN companies c ON p.company_id = c.id
+          ORDER BY p.name ASC
+        `;
+
+        const result = await db.query(peopleQuery);
+
+        return result.rows.map(row => ({
+          id: row.id,
+          name: row.name,
+          emails: row.emails || [row.email].filter(Boolean),
+          title: row.title,
+          company: row.company_id ? {
+            id: row.company_id,
+            name: row.company_name,
+            domain: row.company_domain,
+            industry: row.company_industry
+          } : undefined,
+          confidence: row.confidence || 0.8,
+          notable_facts: row.notable_facts || [],
+          created_at: row.created_at,
+          updated_at: row.updated_at
+        } as Person));
+      } catch (error) {
+        console.warn('Database unavailable for getAllPeople, using memory store:', error);
+        this.useDatabaseFallback = false;
+      }
+    }
+
+    // Fallback to memory store
+    const allPeople = Array.from(this.personMemoryStore.values());
+    console.log(`📚 Retrieved ${allPeople.length} people from memory store`);
+    return allPeople;
   }
 
   getStorageStatus(): { type: 'database' | 'memory', available: boolean } {
