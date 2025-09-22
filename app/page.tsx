@@ -11,14 +11,6 @@ interface User {
   avatarUrl?: string;
 }
 
-interface AuthData {
-  authenticated: boolean;
-  user?: User;
-  connections?: {
-    calendar: boolean;
-    gmail: boolean;
-  };
-}
 
 interface Meeting {
   id: string;
@@ -43,7 +35,7 @@ interface Meeting {
 export default function MeetingDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [connections, setConnections] = useState<{calendar: boolean, gmail: boolean}>({calendar: false, gmail: false});
+  const [, setConnections] = useState<{calendar: boolean, gmail: boolean}>({calendar: false, gmail: false});
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateLoading, setDateLoading] = useState(false);
