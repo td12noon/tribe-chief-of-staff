@@ -60,7 +60,7 @@ export default function LogbookPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:3001/api/logbook', {
+      const response = await fetch('/api/logbook', {
         credentials: 'include'
       });
 

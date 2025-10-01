@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ email: string }> }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { email } = await params;
-
     // Forward the request to the backend server
     const backendUrl = process.env.NODE_ENV === 'production' 
-      ? `${process.env.BACKEND_URL}/api/participants/${encodeURIComponent(email)}`
-      : `http://localhost:3001/api/participants/${encodeURIComponent(email)}`;
-
+      ? `${process.env.BACKEND_URL}/api/logbook`
+      : 'http://localhost:3001/api/logbook';
+    
     // Get cookies from the original request
     const cookieHeader = request.headers.get('cookie');
 
@@ -31,9 +26,9 @@ export async function GET(
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error('Logbook proxy error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch participant details' },
+      { error: 'Failed to fetch logbook data' },
       { status: 500 }
     );
   }

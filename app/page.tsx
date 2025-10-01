@@ -107,7 +107,7 @@ export default function MeetingDashboard() {
       const day = String(date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
 
-      const calendarResponse = await fetch(`http://localhost:3001/api/calendar/today?date=${dateString}`, {
+      const calendarResponse = await fetch(`/api/calendar/today?date=${dateString}`, {
         credentials: 'include'
       });
       const calendarData = await calendarResponse.json();
@@ -130,7 +130,7 @@ export default function MeetingDashboard() {
     const checkAuthAndFetchData = async () => {
       try {
         // Check authentication status
-        const authResponse = await fetch('http://localhost:3001/api/calendar/auth-status', {
+        const authResponse = await fetch('/api/calendar/auth-status', {
           credentials: 'include'
         });
         const authData = await authResponse.json();

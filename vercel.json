@@ -1,0 +1,24 @@
+{
+  "functions": {
+    "server/src/app.ts": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/server/src/app.ts"
+    },
+    {
+      "source": "/auth/(.*)",
+      "destination": "/server/src/app.ts"
+    },
+    {
+      "source": "/health",
+      "destination": "/server/src/app.ts"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
