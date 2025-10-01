@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Building, Mail, Clock, TrendingUp, User, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, Building, Mail, Clock, User, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface LogbookEntry {
   person: {

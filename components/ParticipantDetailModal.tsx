@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, User, Building, Mail, Calendar, AlertTriangle, CheckCircle, Eye, Briefcase } from 'lucide-react';
 
 interface ParticipantDetails {
@@ -70,13 +70,7 @@ export default function ParticipantDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen && email) {
-      fetchParticipantDetails();
-    }
-  }, [isOpen, email]);
-
-  const fetchParticipantDetails = async () => {
+  const fetchParticipantDetails = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -96,7 +90,13 @@ export default function ParticipantDetailModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [email]);
+
+  useEffect(() => {
+    if (isOpen && email) {
+      fetchParticipantDetails();
+    }
+  }, [isOpen, email, fetchParticipantDetails]);
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.8) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
@@ -231,7 +231,7 @@ export default function ParticipantDetailModal({
                         <User className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                         <p className="text-muted-foreground text-sm font-medium">Person Not Found</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          This contact hasn't been resolved in our system yet.
+                          This contact hasn&apos;t been resolved in our system yet.
                         </p>
                       </div>
                     )}
