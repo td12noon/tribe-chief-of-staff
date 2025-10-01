@@ -79,14 +79,14 @@ if (require.main === module) {
   const startServer = async () => {
     try {
       // Initialize database connections (non-blocking)
-      initializeDatabase().catch(error => {
+      initializeDatabase().catch((error: any) => {
         console.warn('⚠️ Database connection failed, but server will continue:', error.message);
       });
 
       // Schedule daily brief jobs (only if database is available)
       try {
         scheduleDailyBriefs();
-      } catch (error) {
+      } catch (error: any) {
         console.warn('⚠️ Failed to schedule jobs:', error.message);
       }
 
