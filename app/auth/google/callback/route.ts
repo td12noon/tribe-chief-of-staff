@@ -2,34 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    // Forward the request to the backend server
-    const backendUrl = process.env.NODE_ENV === 'production' 
-      ? `${process.env.BACKEND_URL}/auth/google/callback`
-      : 'http://localhost:3001/auth/google/callback';
+    // Get the backend URL from environment variables
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     
-    // Get cookies from the original request
-    const cookieHeader = request.headers.get('cookie');
-
-    const response = await fetch(backendUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(cookieHeader && { 'Cookie': cookieHeader }),
-      },
-      redirect: 'manual', // Don't follow redirects automatically
-    });
-
-    // If it's a redirect response, redirect the user
-    if (response.status === 302 || response.status === 301) {
-      const location = response.headers.get('location');
-      if (location) {
-        return NextResponse.redirect(location);
-      }
-    }
-
-    // If it's not a redirect, return the response
-    const data = await response.text();
-    return new NextResponse(data, { status: response.status });
+    // Get the query parameters from the request
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    
+    // Redirect to the Railway backend callback with query parameters
+    return NextResponse.redirect(`${backendUrl}/auth/google/callback?${queryString}`);
   } catch (error) {
     console.error('OAuth callback error:', error);
     return NextResponse.json(
