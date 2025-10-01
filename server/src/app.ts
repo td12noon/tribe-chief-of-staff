@@ -51,6 +51,27 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint to check environment variables
+app.get('/debug/env', (req, res) => {
+  const dbVars = {
+    PGHOST: process.env.PGHOST,
+    PGPORT: process.env.PGPORT,
+    PGDATABASE: process.env.PGDATABASE,
+    PGUSER: process.env.PGUSER,
+    PGPASSWORD: process.env.PGPASSWORD ? 'SET' : 'NOT SET',
+    DB_HOST: process.env.DB_HOST,
+    DB_PORT: process.env.DB_PORT,
+    DB_NAME: process.env.DB_NAME,
+    DB_USER: process.env.DB_USER,
+    DB_PASSWORD: process.env.DB_PASSWORD ? 'SET' : 'NOT SET',
+    REDIS_URL: process.env.REDIS_URL ? 'SET' : 'NOT SET',
+    REDIS_HOST: process.env.REDIS_HOST,
+    REDIS_PORT: process.env.REDIS_PORT,
+    REDIS_PASSWORD: process.env.REDIS_PASSWORD ? 'SET' : 'NOT SET'
+  };
+  res.json(dbVars);
+});
+
 // API routes
 app.use('/api', (req, res, next) => {
   console.log(`${req.method} ${req.path}`, req.body || req.query);
