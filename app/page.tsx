@@ -265,7 +265,7 @@ export default function MeetingDashboard() {
               ) : (
                 <div className="text-right">
                   <a
-                    href="http://localhost:3001/auth/google"
+                    href="/auth/google"
                     className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors inline-block"
                   >
                     Connect Calendar + Gmail
