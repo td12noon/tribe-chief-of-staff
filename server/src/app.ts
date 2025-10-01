@@ -78,13 +78,17 @@ app.use((req, res) => {
 if (require.main === module) {
   const startServer = async () => {
     try {
-      // Initialize database connections
-      await initializeDatabase();
+      // Initialize database connections (non-blocking)
+      initializeDatabase().catch(error => {
+        console.warn('⚠️ Database connection failed, but server will continue:', error.message);
+      });
 
-      // Schedule daily brief jobs
-      scheduleDailyBriefs();
-
-      console.log('✅ Database and Redis connected successfully');
+      // Schedule daily brief jobs (only if database is available)
+      try {
+        scheduleDailyBriefs();
+      } catch (error) {
+        console.warn('⚠️ Failed to schedule jobs:', error.message);
+      }
 
       app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
