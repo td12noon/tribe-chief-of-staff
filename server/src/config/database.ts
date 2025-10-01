@@ -2,16 +2,16 @@ import { Pool } from 'pg';
 import { createClient } from 'redis';
 import type { DatabaseConfig, RedisConfig } from '../types';
 
-// Database configuration
+// Database configuration - support both Railway and custom env vars
 const dbConfig: DatabaseConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'tribe_chief_of_staff',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+  database: process.env.PGDATABASE || process.env.DB_NAME || 'tribe_chief_of_staff',
+  user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD || 'postgres',
 };
 
-// Redis configuration
+// Redis configuration - support both Railway and custom env vars
 const redisConfig: RedisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -21,14 +21,16 @@ const redisConfig: RedisConfig = {
 // PostgreSQL pool
 export const db = new Pool(dbConfig);
 
-// Redis client
-export const redis: any = createClient({
-  socket: {
-    host: redisConfig.host,
-    port: redisConfig.port,
-  },
-  password: redisConfig.password,
-});
+// Redis client - use Railway REDIS_URL if available, otherwise use individual config
+export const redis: any = process.env.REDIS_URL 
+  ? createClient({ url: process.env.REDIS_URL })
+  : createClient({
+      socket: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+      },
+      password: redisConfig.password,
+    });
 
 // Initialize connections
 export const initializeDatabase = async () => {
